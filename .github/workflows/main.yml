@@ -1,0 +1,99 @@
+version: "1.0"
+pipeline:
+  name: "quantum_teleportation_cirq"
+  description: "End-to-end execution and validation of quantum teleportation protocol in Google Cirq"
+  framework: "cirq"
+
+environment:
+  python_version: ">=3.9"
+  dependencies:
+    - name: "cirq"
+      version: ">=1.0.0"
+    - name: "numpy"
+      version: ">=1.22.0"
+
+qubits:
+  - id: "q_msg"
+    label: "Message (Alice)"
+    role: "source_state"
+    initial_state: "|0>"
+  - id: "q_alice"
+    label: "Entangled (Alice)"
+    role: "bell_pair_alice"
+    initial_state: "|0>"
+  - id: "q_bob"
+    label: "Entangled (Bob)"
+    role: "bell_pair_bob"
+    initial_state: "|0>"
+
+parameters:
+  state_preparation:
+    rotation_angles:
+      theta: 1.88495559215  # 0.6 * pi
+      phi: 0.78539816339    # 0.25 * pi
+
+circuit_stages:
+  - stage: 1
+    name: "state_preparation"
+    target: "q_msg"
+    operations:
+      - gate: "ry"
+        parameter: "theta"
+      - gate: "rz"
+        parameter: "phi"
+
+  - stage: 2
+    name: "bell_pair_generation"
+    description: "Distribute entangled pair between Alice and Bob"
+    operations:
+      - gate: "H"
+        target: "q_alice"
+      - gate: "CNOT"
+        control: "q_alice"
+        target: "q_bob"
+
+  - stage: 3
+    name: "bell_basis_measurement"
+    description: "Alice projects message state onto Bell basis"
+    operations:
+      - gate: "CNOT"
+        control: "q_msg"
+        target: "q_alice"
+      - gate: "H"
+        target: "q_msg"
+      - gate: "measure"
+        target: "q_alice"
+        key: "m_alice"
+      - gate: "measure"
+        target: "q_msg"
+        key: "m_msg"
+
+  - stage: 4
+    name: "classical_feedforward_correction"
+    description: "Bob applies conditional unitary corrections"
+    operations:
+      - gate: "X"
+        target: "q_bob"
+        condition:
+          type: "classical_control"
+          key: "m_alice"
+      - gate: "Z"
+        target: "q_bob"
+        condition:
+          type: "classical_control"
+          key: "m_msg"
+
+simulation:
+  simulator_type: "DensityMatrixSimulator"
+  backend: "local"
+  metrics:
+    target_metric: "quantum_fidelity"
+    threshold: 0.999999
+    tracing:
+      enable_reduced_density_matrix: true
+      target_qubit: "q_bob"
+
+output:
+  log_level: "INFO"
+  export_circuit_diagram: true
+  diagram_format: "text"concurrency: 
