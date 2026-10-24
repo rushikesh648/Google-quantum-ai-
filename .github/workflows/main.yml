@@ -96,4 +96,6 @@ simulation:
 output:
   log_level: "INFO"
   export_circuit_diagram: true
-  diagram_format: "text"concurrency: 
+  diagram_format: "text"
+  state: "t
+    
